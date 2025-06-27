@@ -117,10 +117,11 @@ class YouTube:
                  text_gen="g4f", text_model="gpt-4", 
                  image_gen="g4f", image_model="flux", 
                  tts_engine="edge", tts_voice="en-US-AriaNeural", 
-                 subtitle_font="default", font_size=80, 
+                 subtitle_font="default", font_size=80,
                  text_color="white", highlight_color="blue",
                  subtitles_enabled=True, highlighting_enabled=True,
                  subtitle_position="bottom", music_file="random",
+                 transition_type="none", transition_duration=0.5,
                  api_keys=None, progress=gr.Progress()) -> None:
         
         """Initialize the YouTube Shorts Generator."""
@@ -145,6 +146,8 @@ class YouTube:
         self.highlighting_enabled = highlighting_enabled
         self.subtitle_position = subtitle_position
         self.music_file = music_file
+        self.transition_type = transition_type
+        self.transition_duration = transition_duration
         self.api_keys = api_keys or {}
         self.images = []
         self.logs = []
@@ -1260,7 +1263,14 @@ class YouTube:
             
             # Create video from clips
             self.log(f"Creating video from {len(clips)} clips")
-            final_clip = concatenate_videoclips(clips)
+            if self.transition_type == "crossfade" and self.transition_duration > 0:
+                final_clip = concatenate_videoclips(
+                    clips,
+                    method="compose",
+                    padding=-self.transition_duration
+                )
+            else:
+                final_clip = concatenate_videoclips(clips)
             final_clip = final_clip.set_fps(30)
             
             # Add subtitles if enabled - skip entirely if disabled
@@ -1554,7 +1564,14 @@ def get_tts_voices(engine):
 
 # Create the Gradio interface
 def create_interface():
-    with gr.Blocks(theme=gr.themes.Soft(primary_hue="indigo", radius_size="lg"), title="YouTube Shorts Generator") as demo:
+    with gr.Blocks(
+        theme=gr.themes.Soft(primary_hue="red", radius_size="lg"),
+        title="YouTube Shorts Generator",
+        css="""
+        body { background-color: #0f0f0f; color: #f1f1f1; }
+        .gr-button-primary { background-color: #ff0000; border-color: #ff0000; }
+        """
+    ) as demo:
         with gr.Row():
             gr.Markdown(
                 """
@@ -1652,6 +1669,20 @@ def create_interface():
                             with gr.Row():
                                 text_color = gr.ColorPicker(label="Text Color", value="#FFFFFF")
                                 highlight_color = gr.ColorPicker(label="Highlight Color", value="#0000FF")
+
+                        with gr.TabItem("Transitions"):
+                            transition_type = gr.Dropdown(
+                                choices=["none", "crossfade"],
+                                label="Transition Type",
+                                value="crossfade"
+                            )
+                            transition_duration = gr.Slider(
+                                minimum=0.0,
+                                maximum=2.0,
+                                value=0.5,
+                                step=0.1,
+                                label="Transition Duration (s)"
+                            )
                 
                 # Generate button
                 generate_btn = gr.Button("🎬 Generate Video", variant="primary", size="lg")
@@ -1715,12 +1746,13 @@ def create_interface():
         tts_engine.change(fn=update_tts_voices, inputs=tts_engine, outputs=tts_voice)
         
         # Main generation function
-        def generate_youtube_short(niche, language, text_gen, text_model, image_gen, image_model, 
+        def generate_youtube_short(niche, language, text_gen, text_model, image_gen, image_model,
                                   tts_engine, tts_voice, subtitles_enabled, highlighting_enabled,
-                                  subtitle_font, font_size, subtitle_position, 
-                                  text_color, highlight_color, music_file, 
-                                  gemini_api_key, assemblyai_api_key, 
-                                  elevenlabs_api_key, segmind_api_key, openai_api_key, 
+                                  subtitle_font, font_size, subtitle_position,
+                                  text_color, highlight_color, music_file,
+                                  transition_type, transition_duration,
+                                  gemini_api_key, assemblyai_api_key,
+                                  elevenlabs_api_key, segmind_api_key, openai_api_key,
                                   progress=gr.Progress()):
             
             if not niche.strip():
@@ -1760,6 +1792,8 @@ def create_interface():
                     highlighting_enabled=highlighting_enabled,
                     subtitle_position=subtitle_position,
                     music_file=music_file,
+                    transition_type=transition_type,
+                    transition_duration=transition_duration,
                     api_keys=api_keys,
                     progress=progress
                 )
@@ -1803,6 +1837,7 @@ def create_interface():
                 niche, language, text_gen, text_model, image_gen, image_model,
                 tts_engine, tts_voice, subtitles_enabled, highlighting_enabled,
                 subtitle_font, font_size, subtitle_position, text_color, highlight_color, music_file,
+                transition_type, transition_duration,
                 gemini_api_key, assemblyai_api_key, elevenlabs_api_key, segmind_api_key, openai_api_key
             ],
             outputs=[video_output, title_output, description_output, script_output, log_output]
@@ -1814,13 +1849,13 @@ def create_interface():
         
         gr.Examples(
             [
-                ["Historical Facts", "English", "g4f", "gpt-4", "g4f", "flux", "edge", "en-US-AriaNeural", True, True, "default", 80, "bottom", "#FFFFFF", "#0000FF", default_music],
-                ["Cooking Tips", "English", "g4f", "gpt-4", "g4f", "flux", "edge", "en-US-AriaNeural", True, True, "default", 80, "bottom", "#FFFFFF", "#FF0000", default_music],
-                ["Technology News", "English", "g4f", "gpt-4", "g4f", "flux", "edge", "en-US-GuyNeural", True, True, "default", 80, "bottom", "#FFFFFF", "#00FF00", default_music],
+                ["Historical Facts", "English", "g4f", "gpt-4", "g4f", "flux", "edge", "en-US-AriaNeural", True, True, "default", 80, "bottom", "#FFFFFF", "#0000FF", default_music, "crossfade", 0.5],
+                ["Cooking Tips", "English", "g4f", "gpt-4", "g4f", "flux", "edge", "en-US-AriaNeural", True, True, "default", 80, "bottom", "#FFFFFF", "#FF0000", default_music, "crossfade", 0.5],
+                ["Technology News", "English", "g4f", "gpt-4", "g4f", "flux", "edge", "en-US-GuyNeural", True, True, "default", 80, "bottom", "#FFFFFF", "#00FF00", default_music, "crossfade", 0.5],
             ],
-            [niche, language, text_gen, text_model, image_gen, image_model, tts_engine, tts_voice, 
-             subtitles_enabled, highlighting_enabled, subtitle_font, font_size, 
-             subtitle_position, text_color, highlight_color, music_file],
+            [niche, language, text_gen, text_model, image_gen, image_model, tts_engine, tts_voice,
+             subtitles_enabled, highlighting_enabled, subtitle_font, font_size,
+             subtitle_position, text_color, highlight_color, music_file, transition_type, transition_duration],
             label="Quick Start Templates"
         )
         
