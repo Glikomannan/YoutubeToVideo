@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 import moviepy.editor as mpy
 from moviepy.editor import *
 from moviepy.audio.fx.all import volumex
-from moviepy.video.fx.all import crop
+from moviepy.video.fx.all import crop, fadein, fadeout, slide_in, slide_out
 
 # Suppress the asyncio "Event loop is closed" warning on Windows
 import sys
@@ -1267,8 +1267,29 @@ class YouTube:
                 final_clip = concatenate_videoclips(
                     clips,
                     method="compose",
-                    padding=-self.transition_duration
+                    padding=-self.transition_duration,
                 )
+            elif self.transition_type == "fade" and self.transition_duration > 0:
+                faded = []
+                for i, clip in enumerate(clips):
+                    c = clip
+                    if i > 0:
+                        c = c.fx(fadein, self.transition_duration)
+                    if i < len(clips) - 1:
+                        c = c.fx(fadeout, self.transition_duration)
+                    faded.append(c)
+                final_clip = concatenate_videoclips(faded, method="compose")
+            elif self.transition_type in ("slide-left", "slide-right") and self.transition_duration > 0:
+                side = "left" if self.transition_type == "slide-left" else "right"
+                slid = []
+                for i, clip in enumerate(clips):
+                    c = clip
+                    if i > 0:
+                        c = slide_in(c, self.transition_duration, side=side)
+                    if i < len(clips) - 1:
+                        c = slide_out(c, self.transition_duration, side=side)
+                    slid.append(c)
+                final_clip = concatenate_videoclips(slid, method="compose")
             else:
                 final_clip = concatenate_videoclips(clips)
             final_clip = final_clip.set_fps(30)
@@ -1568,8 +1589,19 @@ def create_interface():
         theme=gr.themes.Soft(primary_hue="red", radius_size="lg"),
         title="YouTube Shorts Generator",
         css="""
-        body { background-color: #0f0f0f; color: #f1f1f1; }
-        .gr-button-primary { background-color: #ff0000; border-color: #ff0000; }
+        body {
+            background-color: #0f0f0f;
+            color: #f1f1f1;
+            font-family: 'Roboto', sans-serif;
+        }
+        .gr-button-primary {
+            background-color: #ff0000;
+            border-color: #ff0000;
+        }
+        .gr-button-primary:hover {
+            background-color: #e30000;
+            border-color: #e30000;
+        }
         """
     ) as demo:
         with gr.Row():
@@ -1672,16 +1704,22 @@ def create_interface():
 
                         with gr.TabItem("Transitions"):
                             transition_type = gr.Dropdown(
-                                choices=["none", "crossfade"],
+                                choices=[
+                                    "none",
+                                    "crossfade",
+                                    "fade",
+                                    "slide-left",
+                                    "slide-right",
+                                ],
                                 label="Transition Type",
-                                value="crossfade"
+                                value="crossfade",
                             )
                             transition_duration = gr.Slider(
                                 minimum=0.0,
                                 maximum=2.0,
                                 value=0.5,
                                 step=0.1,
-                                label="Transition Duration (s)"
+                                label="Transition Duration (s)",
                             )
                 
                 # Generate button

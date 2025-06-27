@@ -1,12 +1,3 @@
----
-title: ShortGenerator
-emoji: 🏢
-colorFrom: indigo
-colorTo: green
-sdk: gradio
-sdk_version: 5.21.0
-app_file: app.py
-pinned: true
----
+# YouTube Shorts Generator
 
-Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+Generate engaging YouTube Shorts with a sleek dark interface. The app mimics YouTube's own look and lets you control subtitle style, background music, and scene transitions (crossfade, fade, slide).
