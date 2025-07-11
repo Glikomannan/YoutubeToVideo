@@ -1,0 +1,17 @@
+gradio
+python-dotenv
+wheel
+setuptools
+g4f
+moviepy==1.0.3
+Pillow==9.5.0
+yagmail
+assemblyai
+platformdirs
+google-generativeai
+gtts
+Brotli
+edge-tts
+telethon
+PyExecJS
+psutil
